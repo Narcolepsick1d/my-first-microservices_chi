@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/rpc"
 )
 
 type RequestPayload struct {
@@ -41,8 +42,7 @@ func (app *Config) Broker(w http.ResponseWriter, r *http.Request) {
 	_ = app.writeJSON(w, http.StatusOK, payload)
 }
 
-// HandleSubmission is the main point of entry into the broker. It accepts a JSON
-// payload and performs an action based on the value of "action" in that JSON.
+// HandleSubmission is the main point
 func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 	var requestPayload RequestPayload
 
@@ -56,7 +56,7 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 	case "auth":
 		app.authenticate(w, requestPayload.Auth)
 	case "log":
-		app.logEventViaRabbit(w, requestPayload.Log)
+		app.logItemViaRPC(w, requestPayload.Log)
 	case "mail":
 		app.sendMail(w, requestPayload.Mail)
 	default:
@@ -99,7 +99,7 @@ func (app *Config) logItem(w http.ResponseWriter, entry LogPayload) {
 
 }
 
-// authenticate calls the authentication microservice and sends back the appropriate response
+// authenticate calls the auth microservice
 func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
 	// create some json we'll send to the auth microservice
 	jsonData, _ := json.MarshalIndent(a, "", "\t")
@@ -222,4 +222,34 @@ func (app *Config) pushToQueue(name, msg string) error {
 		return err
 	}
 	return nil
+}
+
+type RPCPayload struct {
+	Name string
+	Data string
+}
+
+func (app *Config) logItemViaRPC(w http.ResponseWriter, l LogPayload) {
+	client, err := rpc.Dial("tcp", "logger-service:5001")
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+	defer client.Close()
+	rpcPayload := RPCPayload{
+		Name: l.Name,
+		Data: l.Data,
+	}
+	var result string
+	err = client.Call("RPCServer.LogInfo", rpcPayload, &result)
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+	payload := jsonResponse{
+		Error:   false,
+		Message: result,
+	}
+	app.writeJSON(w, http.StatusAccepted, payload)
+
 }
