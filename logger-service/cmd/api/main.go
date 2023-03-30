@@ -49,6 +49,8 @@ func main() {
 	//register rpc server
 	err = rpc.Register(new(RPCServer))
 	go app.rpcListen()
+
+	go app.gRPCListen()
 	//started server
 
 	log.Println("Starting service on port", webPort)
