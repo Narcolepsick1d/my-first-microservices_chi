@@ -28,7 +28,7 @@ Connection to mongo db with Compass:
 
 mongodb://admin:password@localhost:27017/logs?authSource=admin&readPreference=primary&directConnection=true&ssl=false
 
-iIn broker-service/cmd/api/handlers.go line 55 switch case log I have 3 opportunity to register log
+In broker-service/cmd/api/handlers.go line 55 switch case log I have 3 opportunity to register log
 1. Just Logger
 2. With RabbitMQ
 3. RPC 
